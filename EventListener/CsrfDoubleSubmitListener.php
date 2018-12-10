@@ -56,13 +56,15 @@ class CsrfDoubleSubmitListener
             return;
         }
 
-        // does not apply on closures
-        if (!is_array($controller)) {
+        if (is_array($controller)) {
+            $object = new \ReflectionObject($controller[0]);
+            $method = $object->getMethod($controller[1]);
+        } elseif (is_object($controller) && method_exists($controller, '__invoke')) {
+            $object = new \ReflectionObject($controller);
+            $method = $object->getMethod('__invoke');
+        } else {
             return;
         }
-
-        $object = new \ReflectionObject($controller[0]);
-        $method = $object->getMethod($controller[1]);
 
         if (false === $this->isProtectedByCsrfDoubleSubmit($object, $method)) {
             return;
@@ -90,7 +92,7 @@ class CsrfDoubleSubmitListener
     /**
      * @return boolean
      */
-    private function isProtectedByCsrfDoubleSubmit(\ReflectionClass $class, \ReflectionMethod $method)
+    private function isProtectedByCsrfDoubleSubmit(\ReflectionClass $class, \ReflectionMethod $method = null)
     {
         $annotation = $this->annotationReader->getClassAnnotation(
             $class,
@@ -99,6 +101,10 @@ class CsrfDoubleSubmitListener
 
         if (null !== $annotation) {
             return true;
+        }
+
+        if (null === $method) {
+            return false;
         }
 
         $annotation = $this->annotationReader->getMethodAnnotation(
